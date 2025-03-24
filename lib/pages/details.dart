@@ -1,15 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/widget/widget_support.dart';
+import 'order.dart'; // Import trang Order
 
 class Details extends StatefulWidget {
-  const Details({super.key});
+  final Map<String, dynamic> product; // Thêm tham số product
+
+  const Details({super.key, required this.product}); // Thêm required product
 
   @override
   State<Details> createState() => _DetailsState();
 }
 
 class _DetailsState extends State<Details> {
-  int a = 1;
+  int quantity = 1;
+  List<Map<String, dynamic>> cartItems = []; // Danh sách giỏ hàng
+
+  void addToCart() {
+    // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+    bool exists = false;
+    for (var item in cartItems) {
+      if (item["name"] == widget.product["name"]) {
+        setState(() {
+          item["quantity"] += quantity;
+        });
+        exists = true;
+        break;
+      }
+    }
+
+    // Nếu sản phẩm chưa có trong giỏ hàng thì thêm mới
+    if (!exists) {
+      setState(() {
+        cartItems.add({
+          "name": widget.product["name"],
+          "price": widget.product["price"] ?? 28.0, // Giá mặc định nếu không có
+          "image": widget.product["image"] ?? "images/salad2.png",
+          "quantity": quantity,
+        });
+      });
+    }
+
+    // Hiển thị thông báo
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Đã thêm ${widget.product["name"]} vào giỏ hàng"),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,7 +67,7 @@ class _DetailsState extends State<Details> {
                 ),
               ),
               Image.asset(
-                "images/salad2.png",
+                widget.product["image"] ?? "images/salad2.png",
                 fit: BoxFit.cover,
               ),
               SizedBox(height: 15),
@@ -42,7 +81,7 @@ class _DetailsState extends State<Details> {
                         style: AppWidget.semiBoldTextFieldStyle(),
                       ),
                       Text(
-                        "Chick Salad",
+                        widget.product["name"] ?? "Chick Salad",
                         style: AppWidget.boldTextFieldStyle(),
                       ),
                     ],
@@ -50,10 +89,11 @@ class _DetailsState extends State<Details> {
                   Spacer(),
                   GestureDetector(
                     onTap: () {
-                      if (a > 1) {
-                        --a;
+                      if (quantity > 1) {
+                        setState(() {
+                          quantity--;
+                        });
                       }
-                      setState(() {});
                     },
                     child: Container(
                       decoration: BoxDecoration(
@@ -67,12 +107,13 @@ class _DetailsState extends State<Details> {
                   ),
                   Container(
                     margin: EdgeInsets.all(20),
-                    child: Text(a.toString()),
+                    child: Text(quantity.toString()),
                   ),
                   GestureDetector(
                     onTap: () {
-                      ++a;
-                      setState(() {});
+                      setState(() {
+                        quantity++;
+                      });
                     },
                     child: Container(
                       decoration: BoxDecoration(
@@ -121,38 +162,53 @@ class _DetailsState extends State<Details> {
                           style: AppWidget.semiBoldTextFieldStyle(),
                         ),
                         Text(
-                          '\$28',
+                          '\$${(widget.product["price"] ?? 28.0) * quantity}',
                           style: AppWidget.HeadlineTextFieldStyle(),
                         ),
                       ],
                     ),
                     Spacer(),
-                    Container(
-                      width: MediaQuery.of(context).size.width / 2,
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Add to cart',
-                            style: TextStyle(
-                                color: Colors.white, fontFamily: 'Poppins'),
-                          ),
-                          SizedBox(width: 40),
-                          Container(
-                            padding: EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                                color: Colors.grey,
-                                borderRadius: BorderRadius.circular(10)),
-                            child: Icon(
-                              Icons.shopping_cart_outlined,
-                              color: Colors.white,
+                    GestureDetector(
+                      onTap: addToCart, // Thêm sự kiện khi nhấn nút
+                      child: Container(
+                        width: MediaQuery.of(context).size.width / 2,
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Add to cart',
+                              style: TextStyle(
+                                  color: Colors.white, fontFamily: 'Poppins'),
                             ),
-                          )
-                        ],
+                            SizedBox(width: 40),
+                            GestureDetector(
+                              onTap: () {
+                                // Khi nhấn icon giỏ hàng thì chuyển sang trang Order
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        Order(cartItems: cartItems),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                    color: Colors.grey,
+                                    borderRadius: BorderRadius.circular(10)),
+                                child: Icon(
+                                  Icons.shopping_cart_outlined,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          ],
+                        ),
                       ),
                     )
                   ],

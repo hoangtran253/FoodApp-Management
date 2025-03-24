@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:food_app/widget/app_constant.dart';
 import 'package:food_app/widget/widget_support.dart';
+import 'package:http/http.dart' as http;
 
 class Wallet extends StatefulWidget {
   const Wallet({super.key});
@@ -9,6 +14,8 @@ class Wallet extends StatefulWidget {
 }
 
 class _WalletState extends State<Wallet> {
+  Map<String, dynamic>? paymentIntent;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,7 +69,7 @@ class _WalletState extends State<Wallet> {
                         height: 5,
                       ),
                       Text(
-                        "\$" + "100",
+                        "\$" + "0",
                         style: AppWidget.boldTextFieldStyle(),
                       ),
                     ],
@@ -86,16 +93,21 @@ class _WalletState extends State<Wallet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Container(
-                  padding: EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Color(0xFFE9E2E2),
-                      ),
-                      borderRadius: BorderRadius.circular(5)),
-                  child: Text(
-                    "\$" + "100",
-                    style: AppWidget.semiBoldTextFieldStyle(),
+                GestureDetector(
+                  onTap: () {
+                    makePayment('100');
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Color(0xFFE9E2E2),
+                        ),
+                        borderRadius: BorderRadius.circular(5)),
+                    child: Text(
+                      "\$" + "100",
+                      style: AppWidget.semiBoldTextFieldStyle(),
+                    ),
                   ),
                 ),
                 Container(
@@ -163,5 +175,87 @@ class _WalletState extends State<Wallet> {
         ),
       ),
     );
+  }
+
+  Future<void> makePayment(String amount) async {
+    try {
+      paymentIntent = await createPaymentIntent(amount, 'USD');
+      await Stripe.instance
+          .initPaymentSheet(
+              paymentSheetParameters: SetupPaymentSheetParameters(
+                  paymentIntentClientSecret: paymentIntent!['client_secret'],
+                  style: ThemeMode.dark,
+                  merchantDisplayName: 'Admin'))
+          .then((value) {});
+
+      displayPaymentSheet(amount);
+    } catch (e, s) {
+      print('exception: $e$s');
+    }
+  }
+
+  displayPaymentSheet(String amount) async {
+    try {
+      await Stripe.instance.presentPaymentSheet().then((value) async {
+        showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+                  content: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                          Text('Payment Successful')
+                        ],
+                      )
+                    ],
+                  ),
+                ));
+        paymentIntent = null;
+      }).onError((error, stackTrace) {
+        print('Error is:---> $error $stackTrace');
+      });
+    } on StripeException catch (e) {
+      print('Error is:----> $e');
+      showDialog(
+          context: context,
+          builder: (_) => const AlertDialog(
+                content: Text('Cancelled'),
+              ));
+    } catch (e) {
+      print('$e');
+    }
+  }
+
+  createPaymentIntent(String amount, String currency) async {
+    try {
+      Map<String, dynamic> body = {
+        'amount': calculateAmount(amount),
+        'currency': currency,
+        'payment_method_types[]': 'card',
+      };
+
+      var response = await http.post(
+        Uri.parse('https://api.stripe.com/v1/payment_intents'),
+        headers: {
+          'Authorization': 'Bearer $secretKey',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: body,
+      );
+      print('Payment Intent Body->>> ${response.body.toString()}');
+      return jsonDecode(response.body);
+    } catch (err) {
+      print('err charging user: ${err.toString()}');
+    }
+  }
+
+  calculateAmount(String amount) {
+    final calculateAmount = (int.parse(amount) * 100);
+
+    return calculateAmount.toString();
   }
 }

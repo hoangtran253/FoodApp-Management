@@ -1,15 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class Order extends StatefulWidget {
-  const Order({super.key});
+import 'cart_provider.dart';
 
-  @override
-  State<Order> createState() => _OrderState();
-}
+class Order extends StatelessWidget {
+  final List<Map<String, dynamic>> cartItems;
 
-class _OrderState extends State<Order> {
+  const Order({super.key, required this.cartItems});
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    final cartProvider = Provider.of<CartProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Giỏ hàng (${cartItems.length})"),
+        actions: [
+          if (cartItems.isNotEmpty)
+            IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () => cartProvider.clearCart(),
+            )
+        ],
+      ),
+      body: cartItems.isEmpty
+          ? const Center(child: Text("Giỏ hàng trống"))
+          : ListView.builder(
+              itemCount: cartItems.length,
+              itemBuilder: (context, index) {
+                final item = cartItems[index];
+                return Dismissible(
+                  key: Key(item['name']),
+                  onDismissed: (direction) {
+                    cartProvider.removeItem(index);
+                  },
+                  child: Card(
+                    child: ListTile(
+                      leading:
+                          Image.asset(item['image'], width: 50, height: 50),
+                      title: Text(item['name']),
+                      subtitle: Text("Số lượng: ${item['quantity']}"),
+                      trailing: Text("\$${item['price'] * item['quantity']}"),
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
   }
 }
